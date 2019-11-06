@@ -1,0 +1,424 @@
+//Jeremiah Lee
+//CPE 123 Group 5
+
+#include <CPutil.h>
+
+// Simple sketch to just test a motor
+
+// MAKE THIS MATCHES YOUR MOTOR PINS
+// The mega pins that go to the motor controller
+
+const int lMotorPin1 = 4;
+const int lMotorPin2 = 5;
+const int rMotorPin1 = 6;
+const int rMotorPin2 = 7;
+const int buttonPin = 9;
+
+Button mybutton(buttonPin);
+
+void setup() 
+{
+  // put your setup code here, to run once:
+  Serial.begin(9600);
+  
+  setupMessage(__FILE__, "Simple Motor Test sketch");
+  delay(500);
+
+  motorsSetup();
+  motorTest();
+  robotStop();
+  delay (1000);
+     
+}
+
+
+
+void loop()
+{
+  drivingControl();
+}
+
+//drives straight, turns right, drives straight, turns left, drives backward, spins, stops.
+int drivingControl()
+{
+  enum {START, STRAIGHT1, TURNRIGHT, STRAIGHT2, TURNLEFT, BACKWARD, SPIN};
+  static int controlState = START;
+  //static MSTimer controlTimer;
+  int returnValue = false;
+
+  switch (controlState)
+  {
+    case START:
+      robotStop();
+      if (mybutton.wasPushed()==true)
+      {
+        controlState = STRAIGHT1;
+      }
+      returnValue = false;
+    break;
+
+    case STRAIGHT1:
+      if(robotForwardTimed(250, 3000)==true)
+      {
+        controlState = TURNRIGHT;
+        returnValue = false;
+      }
+      else
+      {
+        returnValue = false;
+      }
+    break;
+
+    case TURNRIGHT:
+      if(robotRightTurn(100, 2000)==true)
+      {
+        controlState = STRAIGHT2;
+        returnValue = false;
+      }
+      else
+      {
+        returnValue = false;
+      }
+    break;
+
+    case STRAIGHT2:
+      if(robotForwardTimed(250, 5000)==true)
+      {
+        controlState = TURNLEFT;
+        returnValue = false;
+      }
+      else
+      {
+        returnValue = false;
+      }
+    break;
+
+    case TURNLEFT:
+      if(robotLeftTurn(100, 1000)==true)
+      {
+        controlState = BACKWARD;
+        returnValue = false;
+      }
+      else
+      {
+        returnValue = false;
+      }
+    break;
+
+    case BACKWARD:
+      if(robotBackwardTimed(250, 1000)==true)
+      {
+        controlState = SPIN;
+        returnValue = false;
+      }
+      else
+      {
+        returnValue = false;
+      }
+    break;
+
+    case SPIN:
+      if(robotSpin(250, 500)==true)
+      {
+        controlState = START;
+        returnValue = false;
+      }
+      else
+      {
+        returnValue = false;
+      }
+    break;
+      
+  }
+}
+
+//spins the robot
+int robotSpin(int aSpeed, int driveTime)
+{
+  enum {START, OFF, SPIN};
+  static int spinState = START;
+  static MSTimer spinTimer;
+  int returnValue = false;
+
+  switch (spinState)
+  {
+    case START:
+      robotStop();
+      spinState = OFF;
+      returnValue = false;
+    break;
+
+    case OFF:
+      if(spinTimer.done())
+      {
+        rightMotorForward(aSpeed);
+        leftMotorBackward(aSpeed);
+        spinTimer.set(driveTime);
+        spinState = SPIN;
+        returnValue = false;
+      }
+    break;
+
+    case SPIN:
+      if(spinTimer.done())
+      {
+        robotStop();
+        spinState = OFF;
+        returnValue = true;
+      }
+    break;
+  }
+  return returnValue;
+}
+
+//turns the robot left
+int robotLeftTurn(int aSpeed, int driveTime)
+{
+  enum {START, OFF, TURN};
+  static int lTurnState = START;
+  static MSTimer lTurnTimer;
+  int returnValue = false;
+
+  switch (lTurnState)
+  {
+    case START:
+      robotStop();
+      lTurnState = OFF;
+      returnValue = false;
+    break;
+
+    case OFF:
+      if (lTurnTimer.done())
+      {
+        lTurnTimer.set(driveTime);
+        leftTurn(aSpeed);
+        lTurnState = TURN;
+        returnValue = false;
+      }
+    break;
+
+    case TURN:
+      if (lTurnTimer.done())
+      {
+        robotStop();
+        lTurnState = OFF;
+        returnValue = true;
+      }
+      else
+      {
+        returnValue = false;
+      }
+    break;
+  }
+  return returnValue;
+}
+
+//turns the robot right
+int robotRightTurn(int aSpeed, int driveTime)
+{
+  enum {START, OFF, TURN};
+  static int rTurnState = START;
+  static MSTimer rTurnTimer;
+  int returnValue = false;
+
+  switch (rTurnState)
+  {
+    case START:
+      robotStop();
+      rTurnState = OFF;
+      returnValue = false;
+    break;
+
+    case OFF:
+      if (rTurnTimer.done())
+      {
+        rTurnTimer.set(driveTime);
+        rightTurn(aSpeed);
+        rTurnState = TURN;
+        returnValue = false;
+      }
+    break;
+
+    case TURN:
+      if (rTurnTimer.done())
+      {
+        robotStop();
+        rTurnState = OFF;
+        returnValue = true;
+      }
+      else
+      {
+        returnValue = false;
+      }
+    break;
+  }
+  return returnValue;
+}
+
+//drives the robot backward
+int robotBackwardTimed(int aSpeed, int backTime)
+{
+  enum {START, OFF, LR_ON};
+  static int backState = START;
+  static MSTimer backTimer;
+  int returnValue = false;
+
+  switch (backState)
+  {
+    case START:
+      robotStop();
+      backState = OFF;
+      returnValue = false;
+    break;
+
+    case OFF:
+      if (backTimer.done())
+      {
+        backTimer.set(backTime);
+        rightMotorBackward(aSpeed);
+        leftMotorBackward(aSpeed);
+        backState = LR_ON;
+        returnValue = false;
+      }
+    break;
+
+    case LR_ON:
+      if (backTimer.done())
+      {
+        robotStop();
+        backState = OFF;
+        returnValue = true;
+      }
+      else
+      {
+        returnValue = false;
+      }
+    break;
+  }
+  return returnValue;
+}
+
+//drives the robot forward
+int robotForwardTimed(int aSpeed, int driveTime)
+{
+  enum {START, OFF, LR_ON};
+  static int forwardState = START;
+  static MSTimer driveTimer;
+  int returnValue = false;
+
+  switch (forwardState)
+  {
+    case START:
+      robotStop();
+      forwardState = OFF;
+      returnValue = false;
+    break;
+
+    case OFF:
+      if (driveTimer.done())
+      {
+        driveTimer.set(driveTime);
+        rightMotorForward(aSpeed);
+        leftMotorForward(aSpeed);
+        forwardState = LR_ON;
+        returnValue = false;
+      }
+    break;
+
+    case LR_ON:
+      if (driveTimer.done())
+      {
+        robotStop();
+        forwardState = OFF;
+        returnValue = true;
+      }
+      else
+      {
+        returnValue = false;
+      }
+    break;
+  }
+  return returnValue;
+}
+
+void rightTurn(int aSpeed)
+{
+  rightMotorStop();
+  leftMotorForward(aSpeed);
+}
+
+void leftTurn(int aSpeed)
+{
+  leftMotorStop();
+  rightMotorForward(aSpeed);
+}
+
+void rightMotorBackward(int aSpeed)
+{
+  motorControl(rMotorPin2, rMotorPin1, aSpeed);
+}
+
+void leftMotorBackward(int aSpeed)
+{
+  motorControl(lMotorPin2, lMotorPin1, aSpeed);
+}
+
+void rightMotorForward(int aSpeed)
+{
+  motorControl(rMotorPin1, rMotorPin2, aSpeed);
+}
+
+void leftMotorForward(int aSpeed)
+{
+  motorControl(lMotorPin1, lMotorPin2, aSpeed);
+}
+
+void rightMotorStop()
+{
+  motorControl(rMotorPin1, rMotorPin2, 0);
+}
+
+void leftMotorStop()
+{
+  motorControl(lMotorPin1, lMotorPin2, 0);
+}
+
+void motorControl(int pin1, int pin2, int aSpeed)
+{
+  analogWrite(pin1, aSpeed);
+  analogWrite(pin2, 0);
+}
+
+void robotStop()
+{
+   analogWrite(lMotorPin1, 0);
+   analogWrite(lMotorPin2, 0);
+   analogWrite(rMotorPin1, 0);
+   analogWrite(rMotorPin2, 0);
+}
+
+void motorTest()
+{
+   analogWrite(lMotorPin1, 250);
+   analogWrite(lMotorPin2, 0);
+   analogWrite(rMotorPin1, 250);
+   analogWrite(rMotorPin2, 0);
+  
+   delay(2000);
+}
+
+void motorsSetup()
+{
+  // Initalize the pins for output 
+   pinMode(lMotorPin1, OUTPUT);
+   pinMode(rMotorPin2, OUTPUT);
+   pinMode(lMotorPin1, OUTPUT);
+   pinMode(rMotorPin2, OUTPUT);
+
+    // Stop the motor
+   analogWrite(lMotorPin1, 0);
+   analogWrite(lMotorPin2, 0);
+   analogWrite(rMotorPin1, 0);
+   analogWrite(rMotorPin2, 0);
+}
+
